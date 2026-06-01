@@ -8,9 +8,17 @@ import {
   XMarkIcon,
   TrashIcon,
   UserIcon,
+  UsersIcon,
+  UserPlusIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "@/context/AuthContext";
-import { getProject, createTask, updateTask, deleteTask } from "@/lib/api";
+import {
+  getProject,
+  createTask,
+  updateTask,
+  deleteTask,
+  addProjectMember,
+} from "@/lib/api";
 
 const STATUSES = ["TODO", "IN_PROGRESS", "DONE"];
 const STATUS_LABELS = { TODO: "To Do", IN_PROGRESS: "In Progress", DONE: "Done" };
@@ -37,6 +45,104 @@ function Navbar({ user, onLogout }) {
         </button>
       </div>
     </nav>
+  );
+}
+
+function AddMemberModal({ projectId, onClose, onAdded }) {
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      await addProjectMember(projectId, { email });
+      setSuccess(true);
+      onAdded();
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to add member.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+      <div className="bg-slate-800 rounded-xl w-full max-w-sm shadow-2xl">
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-700">
+          <h2 className="text-white font-semibold text-lg">Add member</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-white">
+            <XMarkIcon className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6">
+          {success ? (
+            <div className="text-center">
+              <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                <UsersIcon className="w-6 h-6 text-green-400" />
+              </div>
+              <p className="text-white font-medium mb-1">Member added</p>
+              <p className="text-slate-400 text-sm mb-6">
+                <span className="text-white">{email}</span> now has access to
+                this project.
+              </p>
+              <button
+                onClick={onClose}
+                className="w-full bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-lg py-2.5 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-lg px-4 py-3">
+                  {error}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">
+                  Email address
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="teammate@example.com"
+                  className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-4 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+                <p className="text-slate-500 text-xs mt-1.5">
+                  They must already have a TaskFlow account.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-lg py-2.5 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-medium rounded-lg py-2.5 transition-colors"
+                >
+                  {loading ? "Adding..." : "Add member"}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -233,13 +339,12 @@ export default function ProjectPage({ params }) {
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [fetching, setFetching] = useState(true);
-  const [showModal, setShowModal] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [showMemberModal, setShowMemberModal] = useState(false);
   const [fetchError, setFetchError] = useState("");
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login");
-    }
+    if (!loading && !user) router.push("/login");
   }, [user, loading, router]);
 
   useEffect(() => {
@@ -252,6 +357,15 @@ export default function ProjectPage({ params }) {
       .catch(() => setFetchError("Failed to load project."))
       .finally(() => setFetching(false));
   }, [id, user]);
+
+  async function handleMemberAdded() {
+    try {
+      const res = await getProject(id);
+      setProject(res.data.project);
+    } catch {
+      // silently skip re-fetch; member was still added
+    }
+  }
 
   async function handleCreateTask(payload) {
     const res = await createTask(id, payload);
@@ -304,6 +418,7 @@ export default function ProjectPage({ params }) {
       <Navbar user={user} onLogout={logout} />
 
       <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Project header */}
         <div className="mb-8">
           <div className="flex items-center gap-2 text-slate-400 text-sm mb-3">
             <Link href="/dashboard" className="hover:text-white transition-colors">
@@ -312,16 +427,51 @@ export default function ProjectPage({ params }) {
             <span>/</span>
             <span className="text-white">{project?.name}</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">{project?.name}</h1>
-          {project?.description && (
-            <p className="text-slate-400 text-sm mt-1">{project.description}</p>
+
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-white">{project?.name}</h1>
+              {project?.description && (
+                <p className="text-slate-400 text-sm mt-1">{project.description}</p>
+              )}
+            </div>
+
+            {/* Add member button */}
+            <button
+              onClick={() => setShowMemberModal(true)}
+              className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors flex-shrink-0"
+            >
+              <UserPlusIcon className="w-4 h-4" />
+              Add member
+            </button>
+          </div>
+
+          {/* Members list */}
+          {project?.members && project.members.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 mt-4">
+              {project.members.map((m) => (
+                <div
+                  key={m.id}
+                  className="flex items-center gap-1.5 bg-slate-800 border border-slate-700 rounded-full px-3 py-1"
+                >
+                  <UserIcon className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-slate-300 text-xs">{m.user.name}</span>
+                  {m.role === "OWNER" && (
+                    <span className="text-purple-400 text-xs font-medium">
+                      · Owner
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
+        {/* Board header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-white font-semibold">Board</h2>
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => setShowTaskModal(true)}
             className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors"
           >
             <PlusIcon className="w-4 h-4" />
@@ -329,6 +479,7 @@ export default function ProjectPage({ params }) {
           </button>
         </div>
 
+        {/* Kanban columns */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {STATUSES.map((status) => {
             const columnTasks = tasks.filter((t) => t.status === status);
@@ -365,11 +516,19 @@ export default function ProjectPage({ params }) {
         </div>
       </main>
 
-      {showModal && (
+      {showTaskModal && (
         <AddTaskModal
           members={project?.members || []}
-          onClose={() => setShowModal(false)}
+          onClose={() => setShowTaskModal(false)}
           onCreate={handleCreateTask}
+        />
+      )}
+
+      {showMemberModal && (
+        <AddMemberModal
+          projectId={id}
+          onClose={() => setShowMemberModal(false)}
+          onAdded={handleMemberAdded}
         />
       )}
     </div>
