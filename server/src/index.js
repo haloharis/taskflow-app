@@ -1,4 +1,5 @@
 require("dotenv").config();
+const http = require("http");
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
@@ -6,6 +7,9 @@ const cookieParser = require("cookie-parser");
 const authRouter = require("./routes/auth");
 const projectRouter = require("./routes/project.routes");
 const taskRouter = require("./routes/task.routes");
+const uploadRouter = require("./routes/upload.routes");
+const notificationRouter = require("./routes/notification.routes");
+const { initSocket } = require("./lib/socket");
 
 const app = express();
 
@@ -23,8 +27,13 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRouter);
 app.use("/api/projects", projectRouter);
 app.use("/api/tasks", taskRouter);
+app.use("/api/upload", uploadRouter);
+app.use("/api/notifications", notificationRouter);
+
+const server = http.createServer(app);
+initSocket(server);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

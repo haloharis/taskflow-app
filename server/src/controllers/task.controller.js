@@ -1,5 +1,6 @@
 const { z } = require("zod");
 const prisma = require("../lib/prisma");
+const redisClient = require("../lib/redis");
 
 const createTaskSchema = z.object({
   title: z.string().min(1),
@@ -54,12 +55,24 @@ async function createTask(req, res) {
     });
 
     if (assigneeId) {
-      await prisma.notification.create({
+      const notification = await prisma.notification.create({
         data: {
           userId: assigneeId,
           message: `You have been assigned a new task: ${task.title}`,
         },
       });
+      redisClient.publish(
+        "notifications",
+        JSON.stringify({
+          userId: assigneeId,
+          notification: {
+            id: notification.id,
+            message: notification.message,
+            read: false,
+            createdAt: notification.createdAt,
+          },
+        })
+      );
     }
 
     return res.status(201).json({ task });
@@ -130,12 +143,24 @@ async function updateTask(req, res) {
       parsed.data.assigneeId !== prevAssigneeId &&
       parsed.data.assigneeId
     ) {
-      await prisma.notification.create({
+      const notification = await prisma.notification.create({
         data: {
           userId: parsed.data.assigneeId,
           message: `You have been assigned a new task: ${updated.title}`,
         },
       });
+      redisClient.publish(
+        "notifications",
+        JSON.stringify({
+          userId: parsed.data.assigneeId,
+          notification: {
+            id: notification.id,
+            message: notification.message,
+            read: false,
+            createdAt: notification.createdAt,
+          },
+        })
+      );
     }
 
     return res.status(200).json({ task: updated });

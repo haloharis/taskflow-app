@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -16,10 +17,11 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  ownedProjects  Project[]       @relation("ProjectOwner")
-  memberships    ProjectMember[]
-  assignedTasks  Task[]          @relation("TaskAssignee")
-  notifications  Notification[]
+  ownedProjects        Project[]        @relation("ProjectOwner")
+  memberships          ProjectMember[]
+  assignedTasks        Task[]           @relation("TaskAssignee")
+  notifications        Notification[]
+  uploadedAttachments  TaskAttachment[]
 }
 
 model Project {
@@ -60,8 +62,20 @@ model Task {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  project  Project @relation(fields: [projectId], references: [id])
-  assignee User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  project     Project          @relation(fields: [projectId], references: [id])
+  assignee    User?            @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  attachments TaskAttachment[]
+}
+
+model TaskAttachment {
+  id         String   @id @default(uuid())
+  taskId     String
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  fileUrl    String
+  fileName   String
+  uploadedBy String
+  uploader   User     @relation(fields: [uploadedBy], references: [id])
+  createdAt  DateTime @default(now())
 }
 
 model Notification {

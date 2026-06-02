@@ -14,8 +14,10 @@ import {
 } from "@heroicons/react/24/outline";
 import { useAuth } from "@/context/AuthContext";
 import { getProjects, createProject, updateProject, deleteProject } from "@/lib/api";
+import AvatarUpload from "@/components/AvatarUpload";
+import NotificationBell from "@/components/NotificationBell";
 
-function Navbar({ user, onLogout }) {
+function Navbar({ user, onLogout, onAvatarUpdate }) {
   return (
     <nav className="bg-slate-800 border-b border-slate-700 px-6 py-4 flex items-center justify-between">
       <span className="text-xl font-bold text-white">
@@ -23,6 +25,13 @@ function Navbar({ user, onLogout }) {
       </span>
       <div className="flex items-center gap-4">
         <span className="text-slate-400 text-sm">{user?.email}</span>
+        <AvatarUpload
+          currentAvatar={user?.avatar}
+          userName={user?.name}
+          onUploadSuccess={onAvatarUpdate}
+          size={40}
+        />
+        <NotificationBell />
         <button
           onClick={onLogout}
           className="text-slate-400 hover:text-white text-sm transition-colors"
@@ -194,7 +203,7 @@ function ConfirmDeleteModal({ project, onClose, onConfirm }) {
 }
 
 export default function DashboardPage() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading, logout, updateUserAvatar } = useAuth();
   const router = useRouter();
 
   const [projects, setProjects] = useState([]);
@@ -242,7 +251,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-900">
-      <Navbar user={user} onLogout={logout} />
+      <Navbar user={user} onLogout={logout} onAvatarUpdate={updateUserAvatar} />
 
       <main className="max-w-6xl mx-auto px-6 py-10">
         <div className="flex items-center justify-between mb-8">

@@ -66,6 +66,9 @@ async function getProjectById(req, res) {
             assignee: {
               select: { id: true, name: true, email: true, avatar: true },
             },
+            attachments: {
+              orderBy: { createdAt: "asc" },
+            },
           },
         },
         members: {

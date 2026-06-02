@@ -10,6 +10,9 @@ import {
   UserIcon,
   UsersIcon,
   UserPlusIcon,
+  PaperClipIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -19,6 +22,8 @@ import {
   deleteTask,
   addProjectMember,
 } from "@/lib/api";
+import TaskAttachments from "@/components/TaskAttachments";
+import NotificationBell from "@/components/NotificationBell";
 
 const STATUSES = ["TODO", "IN_PROGRESS", "DONE"];
 const STATUS_LABELS = { TODO: "To Do", IN_PROGRESS: "In Progress", DONE: "Done" };
@@ -37,6 +42,7 @@ function Navbar({ user, onLogout }) {
       </Link>
       <div className="flex items-center gap-4">
         <span className="text-slate-400 text-sm">{user?.email}</span>
+        <NotificationBell />
         <button
           onClick={onLogout}
           className="text-slate-400 hover:text-white text-sm transition-colors"
@@ -285,6 +291,9 @@ function AddTaskModal({ members, onClose, onCreate }) {
 }
 
 function TaskCard({ task, onStatusChange, onDelete }) {
+  const [showAttachments, setShowAttachments] = useState(false);
+  const attachmentCount = task.attachments?.length ?? 0;
+
   return (
     <div className="bg-slate-700 border border-slate-600 rounded-lg p-4 space-y-3">
       <div className="flex items-start justify-between gap-2">
@@ -327,6 +336,30 @@ function TaskCard({ task, onStatusChange, onDelete }) {
           </option>
         ))}
       </select>
+
+      <button
+        onClick={() => setShowAttachments(!showAttachments)}
+        className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 text-xs transition-colors w-full"
+      >
+        <PaperClipIcon className="w-3.5 h-3.5" />
+        <span>
+          {attachmentCount} attachment{attachmentCount !== 1 ? "s" : ""}
+        </span>
+        <span className="ml-auto">
+          {showAttachments ? (
+            <ChevronUpIcon className="w-3.5 h-3.5" />
+          ) : (
+            <ChevronDownIcon className="w-3.5 h-3.5" />
+          )}
+        </span>
+      </button>
+
+      {showAttachments && (
+        <TaskAttachments
+          taskId={task.id}
+          existingAttachments={task.attachments ?? []}
+        />
+      )}
     </div>
   );
 }

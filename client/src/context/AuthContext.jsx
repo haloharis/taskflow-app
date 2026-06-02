@@ -30,8 +30,12 @@ export function AuthProvider({ children }) {
     router.push("/login");
   }
 
+  function updateUserAvatar(avatarUrl) {
+    setUser((prev) => (prev ? { ...prev, avatar: avatarUrl } : prev));
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, setUser }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, setUser, updateUserAvatar }}>
       {children}
     </AuthContext.Provider>
   );
